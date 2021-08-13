@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.TreeMap;
 
 import static gitlet.Utils.*;
@@ -267,9 +266,11 @@ public class Repository {
             // clears tracking lists and also deletes files that were added to be staged
             stagingArea.clearArea();
 
-        }catch(IllegalArgumentException | IOException e){
+        }catch(IllegalArgumentException e){
             e.printStackTrace();
             System.out.println("Error while checking out branch");
+        }catch (IOException e){
+            e.printStackTrace();
         }
     }
 
@@ -330,7 +331,7 @@ public class Repository {
     }
 
     private static List<String> getAncestors(String commitSha){
-        List<String> l = new ArrayList<>();
+        List<String> l = new ArrayList<String>();
         Commit curr = Commit.getCommit(commitSha);
         while (curr != null){
             l.add(curr.parent);
@@ -353,79 +354,73 @@ public class Repository {
 
     }
 
-    public static void merge(String givenBranch){
+    public static void merge(String givenBranch) {
         String curr = getBranch(head);
         String given = getBranch(givenBranch);
-        if (given == null){
+        if (given == null) {
             System.out.println("Branch does not exist!");
             return;
         }
         // found latest common ancestor!
         String commonAncestor = findLatestAncestor(curr, given);
 
-        if (commonAncestor.equals(curr)){
+        if (commonAncestor.equals(curr)) {
             System.out.println("Nothing to merge");
             return;
         }
-        if (curr.equals(given)){
+        if (curr.equals(given)) {
             System.out.println("Cannot merge with itself");
             return;
         }
         // Load all commits
-        Commit currbranch = Commit.getCommit(curr);
+
         Commit givenbranch = Commit.getCommit(given);
         Commit ancestorCommit = Commit.getCommit(commonAncestor);
+        Commit currbranch = Commit.getCommit(curr);
 
         // comparison tym find better option than tree.equals()
-        if (ancestorCommit.tree.equals(givenbranch.tree)){
+        if (ancestorCommit.tree.equals(givenbranch.tree)) {
             System.out.println("Merge Complete!");
-        }
-        else if (ancestorCommit.tree.equals(currbranch.tree)){
+        } else if (ancestorCommit.tree.equals(currbranch.tree)) {
             System.out.println("Branch brought up to date!");
             checkOutWithCommitId(given);
-        }
-        else {
+        } else {
             // check for rules
-            for (String file : ancestorCommit.tree.keySet()){
-                if (currbranch.tree.containsKey(file) && givenbranch.tree.containsKey(file)){
-                    if (currbranch.tree.get(file).equals(ancestorCommit.tree.get(file))){
-                        if (givenbranch.tree.get(file).equals(ancestorCommit.tree.get(file))){
-                            continue;
-                        }else {
-                            checkoutFile(given, file);
-                            add(file);
-                        }
-                    }else if (currbranch.tree.get(file).equals(givenbranch.tree.get(file))){
-                        continue;
-                    }else {
-                        continue;
+            for (String file : ancestorCommit.tree.keySet()) {
+                if (currbranch.tree.containsKey(file) && givenbranch.tree.containsKey(file)) {
+                    if (currbranch.tree.get(file).equals(givenbranch.tree.get(file))) {
+                        checkoutFile(given, file);
+                        stagingArea.stageForAddition(file, givenbranch.tree.get(file));
                     }
-                }else if (currbranch.tree.containsKey(file) && !ancestorCommit.tree.containsKey(file)){
-                    continue;
-                }else if (givenbranch.tree.containsKey(file) && !ancestorCommit.tree.containsKey(file)){
-                    checkoutFile(given, file);
-                    add(file);
-                }else if (currbranch.tree.get(file).equals(ancestorCommit.tree.get(file)) && !givenbranch.tree.containsKey(file)){
-                    remove(file);
-                }else if (!currbranch.tree.get(file).equals(givenbranch.tree.get(file))){
-                    //generate merge conflict
-                    System.out.println(
-                            "<<<<<<<<<< HEAD \n" +
-                            "content of file in current branch\n" +
-                            readContentsAsString(join(CWD, file)) +
-                            "\n" +
-                            "content of file in given branch" +
-                            ">>>>>>>>>>>\n" +
-                            readContentsAsString(join(CWD, file))
-                    );
-                    return;
                 }
-                else {
-                    // error checking
-                    commitCurrentState("Merge Successful");
-                    return;
+            }
+
+            for (String file : givenbranch.tree.keySet()) {
+                if (currbranch.tree.containsKey(file) && givenbranch.tree.containsKey(file) && !ancestorCommit.tree.containsKey(file)) {
+                    if (!givenbranch.tree.get(file).equals(currbranch.tree.get(file))) {
+                        System.out.println(
+                                "<<<<<<<<<< HEAD \n" +
+                                        "content of file in current branch\n" +
+                                        readContentsAsString(join(CWD, file)) +
+                                        "\n" +
+                                        "content of file in given branch" +
+                                        ">>>>>>>>>>>\n" +
+                                        readContentsAsString(join(CWD, ".gitlet/objects/blobs", givenbranch.tree.get(file)))
+                        );
+                        return;
+                    }
+                }else {
+                    checkoutFile(given, file);
+                    stagingArea.stageForAddition(file, givenbranch.tree.get(file));
+                }
+            }
+
+            for (String file : currbranch.tree.keySet()) {
+                if (currbranch.tree.get(file).equals(ancestorCommit.tree.get(file)) && !givenbranch.tree.containsKey(file)) {
+                    remove(file);
                 }
             }
         }
+        commitCurrentState("Merge Successful");
     }
 }
