@@ -2,7 +2,7 @@
 
 Project done as part of a Data Structures course Hug61B taught by UC Berkely's <a href="https://joshhug.gitbooks.io/hug61b/content/">Josh Hug</a>.
 
-A java based implementation of the git version control system. Implements all the basic verison control functionalities along with checkout and merging.
+A java based implementation of the git version control system. Implements all the basic version control functionalities along with checkout and merging.
 
 
 * Classes 
